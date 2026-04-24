@@ -12,11 +12,34 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import MenuBar from "../components/MenuBar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
+import { ActivityIndicator } from "react-native";
+import { analyzeBill, ParsedBillData } from "../services/GeminiService";
 
 const PredictScreen = () => {
   const [activeTab, setActiveTab] = useState("Predict");
   const [hasUploadedBill, setHasUploadedBill] = useState(false);
   const [selectedBillUri, setSelectedBillUri] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [activeBillData, setActiveBillData] = useState<ParsedBillData | null>(null);
+
+  const processSelectedImage = async (uri: string, base64?: string | null) => {
+    setSelectedBillUri(uri);
+    setHasUploadedBill(false); // Reset while processing
+    if (!base64) return;
+
+    setIsProcessing(true);
+    try {
+      const parsed = await analyzeBill(base64);
+      setActiveBillData(parsed);
+      setHasUploadedBill(true);
+    } catch (error: any) {
+      alert(error.message || "Failed to analyze bill.");
+      setHasUploadedBill(false);
+      setActiveBillData(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleTakePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -29,11 +52,11 @@ const PredictScreen = () => {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
       quality: 0.9,
+      base64: true,
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      setSelectedBillUri(result.assets[0].uri);
-      setHasUploadedBill(true);
+      processSelectedImage(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
@@ -49,11 +72,11 @@ const PredictScreen = () => {
       allowsEditing: false,
       quality: 0.9,
       selectionLimit: 1,
+      base64: true,
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      setSelectedBillUri(result.assets[0].uri);
-      setHasUploadedBill(true);
+      processSelectedImage(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
@@ -122,33 +145,62 @@ const PredictScreen = () => {
           <View style={styles.resultsHeader}>
             <Text style={styles.resultsTitle}>Analysis Results</Text>
             <View style={styles.previewBadge}>
-              <Text style={styles.previewBadgeText}>{hasUploadedBill ? "UPLOADED" : "WAITING"}</Text>
+              <Text style={styles.previewBadgeText}>
+                {isProcessing ? "PROCESSING" : hasUploadedBill ? "UPLOADED" : "WAITING"}
+              </Text>
             </View>
           </View>
 
-          {hasUploadedBill ? (
+          {isProcessing ? (
+            <View style={styles.emptyStateCard}>
+              <ActivityIndicator size="large" color="#0B7A73" />
+              <Text style={styles.emptyStateText}>Analyzing your bill with AI...</Text>
+            </View>
+          ) : hasUploadedBill && activeBillData ? (
             <View style={styles.resultsCard}>
               <View style={styles.resultTopRow}>
                 <View>
                   <Text style={styles.resultLabel}>BILLING PERIOD</Text>
-                  <Text style={styles.periodText}>Oct 01 - Oct 31, 2023</Text>
+                  <Text style={styles.periodText}>{activeBillData.billingPeriod}</Text>
                 </View>
                 <View style={styles.totalDueWrap}>
                   <Text style={styles.resultLabel}>TOTAL DUE</Text>
-                  <Text style={styles.totalDueText}>$142.50</Text>
+                  <Text style={styles.totalDueText}>{activeBillData.totalDue}</Text>
                 </View>
               </View>
 
               <View style={styles.separator} />
 
               <View style={styles.metricsRow}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.resultLabel}>CONSUMPTION</Text>
-                  <Text style={styles.metricValue}>842 <Text style={styles.metricUnit}>kWh</Text></Text>
+                  <Text style={styles.metricValue}>{activeBillData.consumption}</Text>
                 </View>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.resultLabel}>TARIFF</Text>
-                  <Text style={styles.metricValue}>Domestic LT-1</Text>
+                  <Text style={styles.metricValue}>{activeBillData.tariff}</Text>
+                </View>
+              </View>
+
+              <View style={styles.separator} />
+
+              <View style={styles.metricsRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resultLabel}>TOTAL UNITS</Text>
+                  <Text style={styles.metricValue}>{activeBillData.totalUnits}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resultLabel}>PEAK HOURS</Text>
+                  <Text style={styles.metricValue}>{activeBillData.peakHours}</Text>
+                </View>
+              </View>
+
+              <View style={styles.separator} />
+
+              <View style={styles.metricsRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resultLabel}>PREV MONTH UNITS</Text>
+                  <Text style={styles.metricValue}>{activeBillData.previousMonthUnits}</Text>
                 </View>
               </View>
 
@@ -158,37 +210,37 @@ const PredictScreen = () => {
                 <Text style={styles.breakdownTitle}>Detailed Bill Breakdown</Text>
 
                 <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Energy Charge (842 x $0.11)</Text>
-                  <Text style={styles.breakdownValue}>$92.62</Text>
+                  <Text style={styles.breakdownLabel}>Energy Charge</Text>
+                  <Text style={styles.breakdownValue}>{activeBillData.breakdown.energyCharge}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Fixed Charges</Text>
-                  <Text style={styles.breakdownValue}>$18.00</Text>
+                  <Text style={styles.breakdownValue}>{activeBillData.breakdown.fixedCharges}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Fuel Adjustment Charge</Text>
-                  <Text style={styles.breakdownValue}>$9.45</Text>
+                  <Text style={styles.breakdownValue}>{activeBillData.breakdown.fuelAdjustment}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Electricity Duty / Tax</Text>
-                  <Text style={styles.breakdownValue}>$12.32</Text>
+                  <Text style={styles.breakdownValue}>{activeBillData.breakdown.electricityDuty}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Meter Rent</Text>
-                  <Text style={styles.breakdownValue}>$3.50</Text>
+                  <Text style={styles.breakdownValue}>{activeBillData.breakdown.meterRent}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Previous Arrears</Text>
-                  <Text style={styles.breakdownValue}>$8.00</Text>
+                  <Text style={styles.breakdownValue}>{activeBillData.breakdown.previousArrears}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Subsidy Adjustment</Text>
-                  <Text style={styles.breakdownNegative}>-$1.39</Text>
+                  <Text style={styles.breakdownNegative}>{activeBillData.breakdown.subsidyAdjustment}</Text>
                 </View>
 
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>Net Bill Amount</Text>
-                  <Text style={styles.totalValue}>$142.50</Text>
+                  <Text style={styles.totalValue}>{activeBillData.breakdown.netBillAmount}</Text>
                 </View>
               </View>
             </View>
