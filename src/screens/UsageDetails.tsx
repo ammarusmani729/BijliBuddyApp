@@ -14,6 +14,8 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import MenuBar from "../components/MenuBar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useUser } from "../context/UserContext";
+
 
 type Appliance = {
   id: string;
@@ -46,6 +48,7 @@ const applianceOptions: ApplianceOption[] = [
 ];
 
 const AppliancesScreen = () => {
+  const { userData } = useUser();
   const [activeTab, setActiveTab] = useState("Appliances");
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -81,6 +84,8 @@ const AppliancesScreen = () => {
       icon: "washing-machine",
     },
   ]);
+
+  const userName = userData?.name?.split(" ")[0] || "Ahmed";
 
   const filteredAppliances = appliances.filter((item) => {
     const query = search.toLowerCase().trim();
@@ -175,15 +180,20 @@ const AppliancesScreen = () => {
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.topBar}>
-            <Image
-              source={require("../../assets/Bijli-Buddy-Logo.png")}
-              style={styles.brandLogo}
-              resizeMode="contain"
-            />
-            <TouchableOpacity style={styles.iconButton} activeOpacity={0.8}>
-              <Ionicons name="notifications-outline" size={22} color="#0C7F76" />
-            </TouchableOpacity>
+        <View style={styles.topBar}>
+            <View style={styles.brandRow}>
+              <Image
+                source={require("../../assets/Bijli-Buddy-Logo.png")}
+                style={styles.brandLogo}
+                resizeMode="contain"
+              />
+            </View>
+
+            <View style={styles.topActions}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
+            </View>
+          </View>
           </View>
 
           <View style={styles.sectionHeader}>
@@ -458,16 +468,37 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 18,
   },
+    brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   brandLogo: {
-    width: 128,
-    height: 34,
+    width: 120,
+    height: 40,
+  },
+  topActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
   },
   iconButton: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatar: {
     width: 30,
     height: 30,
     borderRadius: 15,
+    backgroundColor: "#0D0F10",
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   sectionHeader: {
     flexDirection: "row",

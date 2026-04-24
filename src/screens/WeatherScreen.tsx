@@ -1,206 +1,404 @@
 import React, { useState } from "react";
-import { Image } from "react-native";
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+  Image,
 } from "react-native";
-import * as Animatable from "react-native-animatable";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import MenuBar from "../components/MenuBar";
-import GradientBackground from "../components/GradientBackground";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const { width, height } = Dimensions.get("window");
+import { useUser } from "../context/UserContext";
 
 const WeatherScreen = () => {
   const [activeTab, setActiveTab] = useState("Weather");
+  const { userData } = useUser();
 
   return (
-    <GradientBackground>
-      <SafeAreaView style={styles.safearea}>
-        {/* Main Content */}
-        <View style={styles.content}>
-          {/* Header */}
-          <Animatable.View animation="fadeInDown" duration={800} style={styles.header}>
-
-            <View style={styles.textureCircle1} />
-            <View style={styles.textureCircle2} />
-            <View style={styles.textureCircle3} />
-            <View style={styles.textureCircle4} />
-            <View style={styles.textureCircle5} />
-            <View style={styles.textureCircle6} />
-            <View style={styles.textureCircle7} />
-                        
-            <Ionicons name="cloud-outline" size={width * 0.09} color="#14b8a6" />
-            <Text style={styles.title}>Weather & Sun Insights</Text>
-          </Animatable.View>
-
-          <Image source={require("../../assets/weather.png")}
-                                style={styles.headerImage}
-                                />
-
-          {/* Weather Info Card */}
-          <Animatable.View animation="fadeInUp" delay={200} style={styles.card}>
-            <View style={styles.row}>
-              <Ionicons name="thermometer-outline" size={width * 0.06} color="#14b8a6" />
-              <Text style={styles.infoText}>Temperature: 32°C</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.screen}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <Image
+              source={require("../../assets/Bijli-Buddy-Logo.png")}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {(userData?.name?.charAt(0) || "A").toUpperCase()}
+              </Text>
             </View>
+          </View>
 
-            <View style={styles.row}>
-              <Ionicons name="partly-sunny-outline" size={width * 0.06} color="#14b8a6" />
-              <Text style={styles.infoText}>Condition: Partly Cloudy</Text>
-            </View>
+          {/* Badge + Title */}
+          <View style={styles.badgeRow}>
+            <Ionicons name="flash" size={14} color="#0B7A73" />
+            <Text style={styles.badgeText}>Response given by AI</Text>
+          </View>
 
-            <View style={styles.row}>
-              <Ionicons name="water-outline" size={width * 0.06} color="#14b8a6" />
-              <Text style={styles.infoText}>Humidity: 65%</Text>
-            </View>
+          <Text style={styles.heroTitle}>
+            AI Advice:
+          </Text>
 
-            <View style={styles.row}>
-              <Ionicons name="time-outline" size={width * 0.06} color="#14b8a6" />
-              <Text style={styles.infoText}>Sunrise: 6:15 AM | Sunset: 6:45 PM</Text>
-            </View>
-          </Animatable.View>
-        </View>
+          {/* Intro paragraph */}
+          <View style={styles.card}>
+            <Text style={styles.bodyText}>
+              lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua
+            </Text>
+          </View>
 
-        {/* ✅ Bottom Menu Bar (Fixed, same structure as PredictScreen) */}
+        </ScrollView>
+
         <MenuBar active={activeTab} onChange={setActiveTab} />
-      </SafeAreaView>
-    </GradientBackground>
+      </View>
+    </SafeAreaView>
   );
 };
 
 export default WeatherScreen;
 
 const styles = StyleSheet.create({
-  safearea: {
+  safeArea: {
     flex: 1,
+    backgroundColor: "#EAF1EF",
+  },
+  screen: {
+    flex: 1,
+    backgroundColor: "#EDF4F1",
+  },
+  scrollContent: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 14,
+  },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#ECFDF5"
+    paddingHorizontal: 2,
+    marginBottom: 14,
   },
-  content: {
+  brandLogo: {
+    width: 120,
+    height: 40,
+  },
+  topActions: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: height * 0.05, // Adds breathing room below the status bar
+    gap: 14,
   },
-  header: {
+  iconButton: {
+    width: 28,
+    height: 28,
     alignItems: "center",
-    marginBottom: height * 0.03, // Adds space between title and card
+    justifyContent: "center",
   },
-  headerImage: {
-  width: 300,
-  height: 300,
-  resizeMode: "contain",
-  marginBottom: -1,
-},
-  title: {
-    color: "#14b8a6",
-    fontSize: width * 0.06,
-    fontWeight: "bold",
-    marginTop: height * 0.01,
+  avatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#0D0F10",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  badgeText: {
+    color: "#0B7A73",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    color: "#0F172A",
+    fontSize: 28,
+    lineHeight: 36,
+    fontWeight: "800",
+    marginBottom: 16,
   },
   card: {
-    backgroundColor: "rgba(15, 23, 42, 0.95)",
-    borderRadius: 20,
-    width: width * 0.88,
-    padding: width * 0.05,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     borderWidth: 1,
-    borderColor: "#14b8a655",
-    shadowColor: "#14b8a6",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
+    borderColor: "#E2E9E7",
+    marginBottom: 16,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
-  row: {
+  bodyText: {
+    color: "#3D4F4C",
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  boldText: {
+    fontWeight: "700",
+    color: "#111827",
+  },
+  highlightText: {
+    fontWeight: "700",
+    color: "#0B7A73",
+  },
+  blockquoteCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    paddingLeft: 28,
+    borderWidth: 1,
+    borderColor: "#E2E9E7",
+    marginBottom: 16,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+    overflow: "hidden",
+  },
+  blockquoteBorder: {
+    position: "absolute",
+    left: 0,
+    top: 12,
+    bottom: 12,
+    width: 4,
+    backgroundColor: "#0B7A73",
+    borderRadius: 2,
+  },
+  blockquoteText: {
+    color: "#3D4F4C",
+    fontSize: 15,
+    lineHeight: 24,
+    fontStyle: "italic",
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    color: "#0B7A73",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  statRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F4F8F7",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    marginTop: 16,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    color: "#111827",
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: "#697974",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  statDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: "#DCE5E3",
+  },
+  tealCard: {
+    backgroundColor: "#0E857E",
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 18,
+    marginBottom: 16,
+    overflow: "hidden",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  tipTopRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 10,
   },
-  infoText: {
-    color: "#e2e8f0",
-    fontSize: width * 0.04,
-    marginLeft: width * 0.03,
+  tipLabel: {
+    color: "#A8F0E7",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginLeft: 8,
   },
-  menuWrapper: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 0,
-    backgroundColor: "transparent",
+  tipTitle: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+    marginBottom: 10,
+    width: "85%",
   },
-
-  // Background circles
-  textureCircle1: {
-    position: "absolute",
-    top: 80,
-    right: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: "#B2F5EA",
-    opacity: 0.45,
+  tipBody: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 15,
+    lineHeight: 22,
+    width: "88%",
+    fontWeight: "500",
   },
-  textureCircle2: {
+  tipWatermark: {
     position: "absolute",
-    top: 280,
-    left: -40,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "#CCFBF1",
-    opacity: 0.5,
+    right: -6,
+    bottom: -18,
   },
-  textureCircle3: {
-    position: "absolute",
-    bottom: 180,
-    right: -30,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "#A7F3D0",
-    opacity: 0.5,
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingBottom: 16,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEF2F1",
   },
-  textureCircle4: {
-    position: "absolute",
-    top: 180,
-    left: 15,
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "#99F6E4",
-    opacity: 0.45,
+  stepRowLast: {
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
-  textureCircle5: {
-    position: "absolute",
-    bottom: 320,
-    right: 25,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#CCFBF1",
-    opacity: 0.5,
+  stepNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#E6F2F0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+    marginTop: 1,
   },
-  textureCircle6: {
-    position: "absolute",
-    top: 450,
-    right: -35,
-    width: 115,
-    height: 115,
-    borderRadius: 57.5,
-    backgroundColor: "#B2F5EA",
-    opacity: 0.45,
+  stepNumberText: {
+    color: "#0B7A73",
+    fontSize: 13,
+    fontWeight: "800",
   },
-  textureCircle7: {
-    position: "absolute",
-    bottom: 100,
-    left: -50,
-    width: 135,
-    height: 135,
-    borderRadius: 67.5,
-    backgroundColor: "#A7F3D0",
-    opacity: 0.5,
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  stepDesc: {
+    color: "#5E6E6B",
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  savingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  savingsLabel: {
+    color: "#516360",
+    fontSize: 14,
+  },
+  savingsLabelBold: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  savingsValue: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  savingsValueGreen: {
+    color: "#0B7A73",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  savingsDivider: {
+    height: 1,
+    backgroundColor: "#E6ECEA",
+    marginVertical: 6,
+  },
+  savingsHighlight: {
+    color: "#0B7A73",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  progressSection: {
+    marginTop: 14,
+  },
+  progressLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  progressLabel: {
+    color: "#697974",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  progressPercent: {
+    color: "#0B7A73",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: "#DDE3E1",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    width: "32%",
+    backgroundColor: "#0F8B82",
+    borderRadius: 999,
+  },
+  disclaimerCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#F4F8F7",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 8,
+    gap: 8,
+  },
+  disclaimerText: {
+    flex: 1,
+    color: "#6A7C7A",
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

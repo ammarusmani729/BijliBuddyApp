@@ -23,19 +23,13 @@ const SignupScreen = () => {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [location, setLocation] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSignup = () => {
-    if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+    if (!fullName.trim() || !email.trim() || !password.trim() || !location.trim()) {
       Alert.alert("Error", "Please fill all fields");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
       return;
     }
 
@@ -52,7 +46,7 @@ const SignupScreen = () => {
     setUserData({
       name: fullName,
       email,
-      location: "",
+      location: location.trim(),
       appliances: {},
     });
 
@@ -70,113 +64,102 @@ const SignupScreen = () => {
           <View style={styles.dotPattern} />
 
           <Animatable.View animation="fadeInDown" duration={700} style={styles.hero}>
-              {/* <View style={styles.logoBox}>
+            {/* <View style={styles.logoBox}>
                 <Image
                   source={require("../../assets/icon.png")}
                   resizeMode="contain"
                   style={styles.logo}
                 />
               </View> */}
-              <Text style={styles.title}>Create your account</Text>
-              <Text style={styles.subtitle}>
-                Join Bijli Buddy to start saving on your energy bills today.
-              </Text>
-            </Animatable.View>
+            <Text style={styles.title}>Create your account</Text>
+            <Text style={styles.subtitle}>
+              Join Bijli Buddy to start saving on your energy bills today.
+            </Text>
+          </Animatable.View>
 
           <Animatable.View animation="fadeInUp" delay={100} duration={700} style={styles.formCard}>
-              <Text style={styles.label}>FULL NAME</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="person-outline" size={18} color="#7B8684" style={styles.leftIcon} />
-                <TextInput
-                  placeholder="Enter your full name"
-                  placeholderTextColor="#B0B7B5"
-                  style={styles.input}
-                  value={fullName}
-                  onChangeText={setFullName}
-                />
-              </View>
+            <Text style={styles.label}>FULL NAME</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="person-outline" size={18} color="#7B8684" style={styles.leftIcon} />
+              <TextInput
+                placeholder="Enter your full name"
+                placeholderTextColor="#B0B7B5"
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+              />
+            </View>
 
-              <Text style={styles.label}>EMAIL ADDRESS</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={18} color="#7B8684" style={styles.leftIcon} />
-                <TextInput
-                  placeholder="name@example.com"
-                  placeholderTextColor="#B0B7B5"
-                  style={styles.input}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </View>
+            <Text style={styles.label}>EMAIL ADDRESS</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="mail-outline" size={18} color="#7B8684" style={styles.leftIcon} />
+              <TextInput
+                placeholder="name@example.com"
+                placeholderTextColor="#B0B7B5"
+                style={styles.input}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
 
-              <Text style={styles.label}>PASSWORD</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed-outline" size={18} color="#7B8684" style={styles.leftIcon} />
-                <TextInput
-                  placeholder="Min. 8 characters"
-                  placeholderTextColor="#B0B7B5"
-                  style={styles.input}
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setShowPassword((current) => !current)}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={20}
-                    color="#6F7B78"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.label}>CONFIRM PASSWORD</Text>
-              <View style={styles.inputWrapper}>
-                <MaterialCommunityIcons name="lock-reset" size={18} color="#7B8684" style={styles.leftIcon} />
-                <TextInput
-                  placeholder="Repeat your password"
-                  placeholderTextColor="#B0B7B5"
-                  style={styles.input}
-                  secureTextEntry={!showConfirmPassword}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                />
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setShowConfirmPassword((current) => !current)}
-                >
-                  <Ionicons
-                    name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                    size={20}
-                    color="#6F7B78"
-                  />
-                </TouchableOpacity>
-              </View>
-
+            <Text style={styles.label}>PASSWORD</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed-outline" size={18} color="#7B8684" style={styles.leftIcon} />
+              <TextInput
+                placeholder="Min. 8 characters"
+                placeholderTextColor="#B0B7B5"
+                style={styles.input}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+              />
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={styles.termsRow}
-                onPress={() => setAcceptedTerms((current) => !current)}
+                onPress={() => setShowPassword((current) => !current)}
               >
-                <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
-                  {acceptedTerms ? <Ionicons name="checkmark" size={12} color="#FFFFFF" /> : null}
-                </View>
-                <Text style={styles.termsText}>
-                  I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text>.
-                </Text>
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color="#6F7B78"
+                />
               </TouchableOpacity>
+            </View>
 
-              <TouchableOpacity activeOpacity={0.88} onPress={handleSignup}>
-                <View style={styles.primaryButton}>
-                  <Text style={styles.primaryButtonText}>Sign Up</Text>
-                  <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
+            <Text style={styles.label}>LOCATION</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="location-outline" size={18} color="#7B8684" style={styles.leftIcon} />
+              <TextInput
+                placeholder="e.g. North Nazimabad, Gulshan-e-Iqbal, PECHS"
+                placeholderTextColor="#B0B7B5"
+                style={styles.input}
+                value={location}
+                onChangeText={setLocation}
+              />
+            </View>
 
-              {/* <View style={styles.dividerRow}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.termsRow}
+              onPress={() => setAcceptedTerms((current) => !current)}
+            >
+              <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                {acceptedTerms ? <Ionicons name="checkmark" size={12} color="#FFFFFF" /> : null}
+              </View>
+              <Text style={styles.termsText}>
+                I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text>.
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity activeOpacity={0.88} onPress={handleSignup}>
+              <View style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>Sign Up</Text>
+                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+
+            {/* <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
                 <View style={styles.dividerLine} />
@@ -204,14 +187,14 @@ const SignupScreen = () => {
                 </TouchableOpacity>
               </View> */}
 
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate("Login" as never)}
-                style={styles.loginRow}
-              >
-                <Text style={styles.loginText}>Already have an account? </Text>
-                <Text style={styles.loginLink}>Log In</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate("Login" as never)}
+              style={styles.loginRow}
+            >
+              <Text style={styles.loginText}>Already have an account? </Text>
+              <Text style={styles.loginLink}>Log In</Text>
+            </TouchableOpacity>
           </Animatable.View>
         </View>
       </KeyboardAvoidingView>

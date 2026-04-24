@@ -1,231 +1,248 @@
-import React, {useState} from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
-  Image,
   ScrollView,
+  TouchableOpacity,
+  Image,
 } from "react-native";
-import * as Animatable from "react-native-animatable";
-import { Ionicons, MaterialCommunityIcons, FontAwesome5  } from "@expo/vector-icons";
-import GradientBackground from "../components/GradientBackground";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import MenuBar from "../components/MenuBar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "../context/UserContext";
-
-const { width, height } = Dimensions.get("window");
+import { useNavigation } from "@react-navigation/native";
 
 const ProfileScreen = () => {
   const [activeTab, setActiveTab] = useState("Profile");
   const { userData } = useUser();
+  const navigation = useNavigation();
+
+  const userName = userData?.name || "User";
+  const userEmail = userData?.email || "—";
+  const userLocation = userData?.location || "—";
+  const applianceCount = userData?.appliances ? Object.keys(userData.appliances).length : 0;
 
   return (
-    <GradientBackground>
-      <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.screen}>
         <ScrollView
-          contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          {/* Header */}
-          <Animatable.View
-            animation="fadeInDown"
-            duration={800}
-            style={styles.header}
-          >
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <Image
+              source={require("../../assets/Bijli-Buddy-Logo.png")}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
+          </View>
 
-            <View style={styles.textureCircle1} />
-            <View style={styles.textureCircle2} />
-            <View style={styles.textureCircle3} />
-            <View style={styles.textureCircle4} />
-            <View style={styles.textureCircle5} />
-            <View style={styles.textureCircle6} />
-            <View style={styles.textureCircle7} />
-
-            <Ionicons name="person-circle-outline" size={42} color="#00E0B8" />
-            <Text style={styles.title}>User Profile</Text>
-          </Animatable.View>
-
-          {/* Profile Card */}
-          <Animatable.View animation="fadeInUp" delay={300} style={styles.card}>
-            {/* Profile Picture */}
-            <View style={styles.avatarContainer}>
-              <Image source={require("../../assets/profile.png")}
-                style={styles.avatar}
+          {/* Avatar + Name */}
+          <View style={styles.profileHeader}>
+            <View style={styles.avatarWrap}>
+              <Image
+                source={require("../../assets/profile.png")}
+                style={styles.avatarImage}
               />
             </View>
-
-            {/* User Info */}
-            <View style={styles.infoContainer}>
-              <Text style={styles.name}>{userData?.name}</Text>
-              <Text style={styles.email}>{userData?.email}</Text>
-            </View>
+            <Text style={styles.userName}>{userName}</Text>
+          </View>
 
           {/* Account Details */}
-          <View style={styles.details}>
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={20} color="#00E0B8" />
-              <Text style={styles.detailText}>{userData?.location}</Text>
+          <Text style={styles.sectionLabel}>PERSONAL INFORMATION</Text>
+          <View style={styles.menuCard}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoLeft}>
+                <Ionicons name="person-outline" size={20} color="#0B7A73" />
+                <Text style={styles.infoLabel}>Name</Text>
+              </View>
+              <Text style={styles.infoValue}>{userName}</Text>
+            </View>
+
+            <View style={styles.menuDivider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoLeft}>
+                <Ionicons name="mail-outline" size={20} color="#0B7A73" />
+                <Text style={styles.infoLabel}>Email</Text>
+              </View>
+              <Text style={styles.infoValue}>{userEmail}</Text>
+            </View>
+
+            <View style={styles.menuDivider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoLeft}>
+                <Ionicons name="location-outline" size={20} color="#0B7A73" />
+                <Text style={styles.infoLabel}>Location</Text>
+              </View>
+              <Text style={styles.infoValue}>{userLocation}</Text>
+            </View>
+
+            <View style={styles.menuDivider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoLeft}>
+                <MaterialCommunityIcons name="lightning-bolt-outline" size={20} color="#0B7A73" />
+                <Text style={styles.infoLabel}>Appliances</Text>
+              </View>
+              <Text style={styles.infoValue}>{applianceCount}</Text>
             </View>
           </View>
 
-
-          </Animatable.View>
+          {/* Logout */}
+          <TouchableOpacity
+            style={styles.logoutButton}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate("Login" as never)}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#C43D34" />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
         </ScrollView>
 
         <MenuBar active={activeTab} onChange={setActiveTab} />
-      </SafeAreaView>
-    </GradientBackground>
+      </View>
+    </SafeAreaView>
   );
 };
 
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
-  safeArea: { 
+  safeArea: {
     flex: 1,
-    backgroundColor: "#ECFDF5"
-   },
-  scrollContainer: {
-    flexGrow: 1,
-    alignItems: "center",
-    paddingTop: height * 0.08,
-    paddingBottom: height * 0.05,
+    backgroundColor: "#EAF1EF",
   },
-  header: {
-    alignItems: "center",
-    marginBottom: height * 0.04,
+  screen: {
+    flex: 1,
+    backgroundColor: "#EDF4F1",
   },
-  title: {
-    color: "#0E5E5F",
-    fontSize: width * 0.06,
-    fontWeight: "700",
-    marginTop: 6,
+  scrollContent: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 14,
   },
-  card: {
-    backgroundColor: "rgba(15, 23, 42, 0.95)",
-    borderRadius: 20,
-    width: width * 0.88,
-    padding: width * 0.06,
-    borderWidth: 1,
-    borderColor: "#14b8a655",
-    shadowColor: "#14b8a6",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
-    alignItems: "center",
-  },
-  avatarContainer: {
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: "#00E0B8",
-  },
-  infoContainer: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  name: {
-    color: "#00E0B8",
-    fontSize: width * 0.055,
-    fontWeight: "700",
-  },
-  email: {
-    color: "#e2e8f0",
-    fontSize: width * 0.04,
-    marginTop: 4,
-  },
-  details: {
-    width: "100%",
-    marginTop: 10,
-  },
-  detailRow: {
+
+  /* Top Bar */
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 8,
+    justifyContent: "space-between",
+    paddingHorizontal: 2,
+    marginBottom: 20,
   },
-  detailText: {
-    color: "#fff",
-    fontSize: width * 0.04,
-    marginLeft: 10,
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-
-   // Background circles
-  textureCircle1: {
-    position: "absolute",
-    top: 80,
-    right: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: "#B2F5EA",
-    opacity: 0.45,
-  },
-  textureCircle2: {
-    position: "absolute",
-    top: 280,
-    left: -40,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "#CCFBF1",
-    opacity: 0.5,
-  },
-  textureCircle3: {
-    position: "absolute",
-    bottom: 180,
-    right: -30,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "#A7F3D0",
-    opacity: 0.5,
-  },
-  textureCircle4: {
-    position: "absolute",
-    top: 180,
-    left: 15,
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "#99F6E4",
-    opacity: 0.45,
-  },
-  textureCircle5: {
-    position: "absolute",
-    bottom: 320,
-    right: 25,
+  brandLogo: {
     width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#CCFBF1",
-    opacity: 0.5,
+    height: 40,
   },
-  textureCircle6: {
-    position: "absolute",
-    top: 450,
-    right: -35,
-    width: 115,
-    height: 115,
-    borderRadius: 57.5,
-    backgroundColor: "#B2F5EA",
-    opacity: 0.45,
-  },
-  textureCircle7: {
-    position: "absolute",
-    bottom: 100,
-    left: -50,
-    width: 135,
-    height: 135,
-    borderRadius: 67.5,
-    backgroundColor: "#A7F3D0",
-    opacity: 0.5,
+  iconButton: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
+  /* Profile Header */
+  profileHeader: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  avatarWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    marginBottom: 14,
+  },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
+    borderColor: "#0B7A73",
+  },
+  userName: {
+    color: "#0F172A",
+    fontSize: 24,
+    fontWeight: "800",
+  },
+
+  /* Section Label */
+  sectionLabel: {
+    color: "#6E7C7A",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    marginLeft: 2,
+  },
+
+  /* Menu Card */
+  menuCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E2E9E7",
+    marginBottom: 24,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+    overflow: "hidden",
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  infoLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  infoLabel: {
+    color: "#697974",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  infoValue: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "700",
+    maxWidth: "50%",
+    textAlign: "right",
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: "#EEF2F1",
+    marginHorizontal: 16,
+  },
+
+  /* Logout */
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingVertical: 14,
+    marginBottom: 8,
+  },
+  logoutText: {
+    color: "#C43D34",
+    fontSize: 15,
+    fontWeight: "700",
+  },
 });

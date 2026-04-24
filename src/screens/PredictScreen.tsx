@@ -16,6 +16,7 @@ import { ActivityIndicator } from "react-native";
 import { analyzeBill, ParsedBillData } from "../services/GeminiService";
 
 const PredictScreen = () => {
+  const { userData } = useUser();
   const [activeTab, setActiveTab] = useState("Predict");
   const [hasUploadedBill, setHasUploadedBill] = useState(false);
   const [selectedBillUri, setSelectedBillUri] = useState<string | null>(null);
@@ -87,15 +88,20 @@ const PredictScreen = () => {
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.topBar}>
-            <Image
-              source={require("../../assets/Bijli-Buddy-Logo.png")}
-              style={styles.brandLogo}
-              resizeMode="contain"
-            />
-            <TouchableOpacity style={styles.iconButton} activeOpacity={0.8}>
-              <Ionicons name="notifications-outline" size={22} color="#9AA6AD" />
-            </TouchableOpacity>
+        <View style={styles.topBar}>
+            <View style={styles.brandRow}>
+              <Image
+                source={require("../../assets/Bijli-Buddy-Logo.png")}
+                style={styles.brandLogo}
+                resizeMode="contain"
+              />
+            </View>
+
+            <View style={styles.topActions}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
+            </View>
+          </View>
           </View>
 
           <View style={styles.heroSection}>
@@ -280,16 +286,37 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 16,
   },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   brandLogo: {
-    width: 128,
-    height: 34,
+    width: 120,
+    height: 40,
+  },
+  topActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
   },
   iconButton: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatar: {
     width: 30,
     height: 30,
     borderRadius: 15,
+    backgroundColor: "#0D0F10",
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   heroSection: {
     marginBottom: 14,
