@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -6,25 +6,272 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import MenuBar from "../components/MenuBar";
 import { useUser } from "../context/UserContext";
+import { useIsFocused } from "@react-navigation/native";
+import { db } from "../config/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { getWeatherAndAiAdvice } from "../services/AIAdviceService";
+import { ActivityIndicator } from "react-native";
+
+type BillSnapshot = {
+  id: string;
+  createdAt: number;
+  billingPeriod: string;
+  totalDue: string;
+  consumption: string;
+  tariff: string;
+  peakHours: string;
+  totalUnits: string;
+  previousMonthUnits: string;
+};
+
+type SlabTracker = {
+  badgeText: string;
+  progress: number;
+  leftLabel: string;
+  centerLabel: string;
+  rightLabel: string;
+  note: string;
+};
+
+const RESIDENTIAL_A1_SLABS = [
+  { label: "1-100", min: 1, max: 100 },
+  { label: "101-200", min: 101, max: 200 },
+  { label: "201-300", min: 201, max: 300 },
+  { label: "301-400", min: 301, max: 400 },
+  { label: "401-500", min: 401, max: 500 },
+  { label: "501-600", min: 501, max: 600 },
+  { label: "601-700", min: 601, max: 700 },
+  { label: "700+", min: 701, max: null as number | null },
+];
+
+const INDUSTRIAL_B_CODES = ["B1", "B2", "B3", "B4", "B5"] as const;
+
+const getIndustrialCode = (tariffText: string) => {
+  const normalized = tariffText.toLowerCase();
+
+  if (/\bb\s*-?\s*5\b/.test(normalized)) return "B5";
+  if (/\bb\s*-?\s*4\b/.test(normalized)) return "B4";
+  if (/\bb\s*-?\s*3\b/.test(normalized)) return "B3";
+  if (/\bb\s*-?\s*2\b/.test(normalized)) return "B2";
+  if (/\bb\s*-?\s*1\b/.test(normalized)) return "B1";
+
+  const kvMatch = normalized.match(/(\d+(?:\.\d+)?)\s*kv/);
+  const kwMatch = normalized.match(/(\d+(?:\.\d+)?)\s*kw/);
+
+  const kvValue = kvMatch ? Number.parseFloat(kvMatch[1]) : null;
+  const kwValue = kwMatch ? Number.parseFloat(kwMatch[1]) : null;
+
+  if (kvValue !== null && kvValue >= 220) return "B5";
+  if (kvValue !== null && kvValue >= 66) return "B4";
+  if (kwValue !== null && kwValue < 5) return "B1";
+  if (kwValue !== null && kwValue >= 5 && kwValue <= 500) return "B2";
+
+  return null;
+};
+
+const getTariffTracker = (latestBill: BillSnapshot | null): SlabTracker => {
+  if (!latestBill) {
+    return {
+      badgeText: "No Tariff",
+      progress: 0,
+      leftLabel: "-",
+      centerLabel: "-",
+      rightLabel: "-",
+      note: "Upload your first bill to detect KE/NEPRA tariff slab.",
+    };
+  }
+
+  const tariffText = latestBill.tariff || "";
+  const units = parseNumericValue(latestBill.totalUnits) ?? parseNumericValue(latestBill.consumption);
+  const normalized = tariffText.toLowerCase();
+  const isResidentialA1 = /(residential|domestic|\ba\s*-?\s*1\b)/i.test(normalized);
+  const industrialCode = getIndustrialCode(tariffText);
+
+  if (isResidentialA1 && units !== null && units > 0) {
+    const slab = RESIDENTIAL_A1_SLABS.find((item) => item.max === null ? units >= item.min : units >= item.min && units <= item.max);
+
+    if (slab) {
+      const span = slab.max !== null ? slab.max - slab.min : 100;
+      const covered = slab.max !== null ? units - slab.min : span;
+      const progress = slab.max !== null ? Math.max(0, Math.min(covered / Math.max(span, 1), 1)) : 1;
+
+      return {
+        badgeText: `Residential A-1 (${slab.label})`,
+        progress,
+        leftLabel: `${slab.min} units`,
+        centerLabel: `${Math.round(units)} units`,
+        rightLabel: slab.max !== null ? `${slab.max} units` : "700+ units",
+        note: `Detected tariff ${tariffText}. Active residential slab: ${slab.label} units.`,
+      };
+    }
+  }
+
+  if (industrialCode) {
+    const index = INDUSTRIAL_B_CODES.indexOf(industrialCode);
+    return {
+      badgeText: `Industrial ${industrialCode}`,
+      progress: (index + 1) / INDUSTRIAL_B_CODES.length,
+      leftLabel: "B1",
+      centerLabel: industrialCode,
+      rightLabel: "B5",
+      note: `Matched industrial category from tariff: ${tariffText}.`,
+    };
+  }
+
+  return {
+    badgeText: "Tariff Unmapped",
+    progress: 0,
+    leftLabel: "-",
+    centerLabel: units !== null ? `${Math.round(units)} units` : "-",
+    rightLabel: "-",
+    note: `Tariff '${tariffText}' is not recognized as Residential A-1 or Industrial B1-B5 yet.`,
+  };
+};
+
+const parseNumericValue = (value: string | undefined) => {
+  if (!value) {
+    return null;
+  }
+
+  const matched = value.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
+  return matched ? Number.parseFloat(matched[0]) : null;
+};
+
+const getBillMonthLabel = (bill: BillSnapshot) => {
+  const periodText = bill.billingPeriod || "";
+  const monthMatch = periodText.match(/Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/i);
+
+  if (monthMatch) {
+    const label = monthMatch[0];
+    return label.charAt(0).toUpperCase() + label.slice(1, 3).toLowerCase();
+  }
+
+  return new Date(bill.createdAt).toLocaleString("en-US", { month: "short" });
+};
 
 const Dashboard = ({ navigation }: any) => {
-  const { userData } = useUser();
+  const { userData, setUserData } = useUser();
+  const isFocused = useIsFocused();
   const [activeTab, setActiveTab] = useState("Dashboard");
+  const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
 
   const userName = userData?.name?.split(" ")[0] || "Ahmed";
-  const monthlyUnits = 284;
-  const estimatedBill = 4240;
-  const dailyAvg = 9.2;
-  const peakWindow = "6pm - 10pm";
-  const slabProgress = 0.568;
+  const latestBill = (userData?.latestBill as BillSnapshot | null | undefined) || null;
+  const billHistory = Array.isArray(userData?.billHistory)
+    ? (userData?.billHistory as BillSnapshot[])
+    : [];
 
-  const monthlyLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const monthlyHeights = [42, 46, 52, 48, 58, 61, 56, 63, 59, 66, 62, 68];
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (!isFocused || !userData?.uid) {
+        return;
+      }
+
+      try {
+        const userDocRef = doc(db, "users", userData.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+          return;
+        }
+
+        const snapshot = userDocSnap.data();
+        setUserData((previous) =>
+          previous
+            ? {
+                ...previous,
+                appliances: snapshot.appliances || {},
+                latestBill: snapshot.latestBill || null,
+                billHistory: Array.isArray(snapshot.billHistory) ? snapshot.billHistory : [],
+              }
+            : previous
+        );
+      } catch (error) {
+        console.error("Failed to load dashboard bill data:", error);
+      }
+    };
+
+    loadDashboardData();
+  }, [isFocused, userData?.uid, setUserData]);
+
+  const monthlyUnits = latestBill?.totalUnits || null;
+  const estimatedBill = latestBill?.totalDue || null;
+  const peakWindow = latestBill?.peakHours || null;
+  const aiAdvice = userData?.aiAdvice || null;
+  const weather = userData?.weather || null;
+
+  const chartData = useMemo(() => {
+    const history = billHistory.slice(-12);
+    const units = history.map((entry) => parseNumericValue(entry.totalUnits) ?? parseNumericValue(entry.consumption) ?? 0);
+    const maxUnits = units.length ? Math.max(...units, 1) : 1;
+
+    return history.map((entry, index) => {
+      const height = Math.max(18, Math.round((units[index] / maxUnits) * 68));
+      return {
+        label: getBillMonthLabel(entry),
+        height,
+      };
+    });
+  }, [billHistory]);
+
+  const slabTracker = useMemo(() => getTariffTracker(latestBill), [latestBill]);
+
+  const advicePreview = useMemo(() => {
+    if (!aiAdvice) {
+      return "";
+    }
+
+    const normalized = aiAdvice.replace(/\s+/g, " ").trim();
+    return normalized.length > 180 ? `${normalized.slice(0, 180).trim()}...` : normalized;
+  }, [aiAdvice]);
+
+  const handleGetAiAdvice = async () => {
+    if (!userData) {
+      Alert.alert("Not available", "Please log in again to generate AI advice.");
+      return;
+    }
+
+    setIsGeneratingAdvice(true);
+    try {
+      const result = await getWeatherAndAiAdvice({
+        profileLocation: userData.location,
+        appliances: userData.appliances,
+        tariffSummary: latestBill?.tariff,
+        unitsSummary: latestBill?.totalUnits,
+      });
+
+      setUserData((previous) =>
+        previous
+          ? {
+              ...previous,
+              weather: result.weather,
+              aiAdvice: result.advice,
+              aiAdviceUpdatedAt: Date.now(),
+            }
+          : previous
+      );
+    } catch (error: any) {
+      console.error("Dashboard AI advice generation failed:", error);
+      const errorMessage = error?.message || "Could not generate advice right now. Please try again.";
+      
+      setUserData((previous) =>
+        previous
+          ? {
+              ...previous,
+              aiAdvice: `Error: ${errorMessage}`,
+            }
+          : previous
+      );
+    } finally {
+      setIsGeneratingAdvice(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -59,13 +306,28 @@ const Dashboard = ({ navigation }: any) => {
               <Ionicons name="sparkles" size={16} color="#B8F3EA" />
               <Text style={styles.tipLabel}>AI SAVINGS TIP</Text>
             </View>
-            <Text style={styles.tipTitle}>High AC Usage Detected</Text>
+            <Text style={styles.tipTitle}>{aiAdvice ? "Personalized Advice Ready" : "No AI Advice Yet"}</Text>
             <Text style={styles.tipBody}>
-              Setting your AC to 24°C instead of 18°C can save you up to ₹850 this month.
+              {aiAdvice ? advicePreview : "Tap Get AI Advice to fetch live weather and generate savings tips for your appliances."}
             </Text>
-            <TouchableOpacity activeOpacity={0.85} style={styles.tipButton}>
-              <Text style={styles.tipButtonText}>Apply Mode</Text>
-            </TouchableOpacity>
+            <View style={styles.tipButtonRow}>
+              <TouchableOpacity activeOpacity={0.85} style={styles.tipButton} onPress={handleGetAiAdvice} disabled={isGeneratingAdvice}>
+                {isGeneratingAdvice ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.tipButtonText}>Get AI Advice</Text>
+                )}
+              </TouchableOpacity>
+              {aiAdvice ? (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.tipSecondaryButton}
+                  onPress={() => navigation.navigate("AIAdvice")}
+                >
+                  <Text style={styles.tipSecondaryButtonText}>View more</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
             <MaterialCommunityIcons
               name="air-conditioner"
               size={120}
@@ -80,7 +342,7 @@ const Dashboard = ({ navigation }: any) => {
               <Ionicons name="flash-outline" size={20} color="#0B7A73" />
             </View>
             <View style={styles.statValueRow}>
-              <Text style={styles.statValue}>284</Text>
+              <Text style={styles.statValue}>{monthlyUnits || "—"}</Text>
               <Text style={styles.statUnit}>kWh</Text>
             </View>
             {/* <View style={styles.trendRow}>
@@ -95,7 +357,7 @@ const Dashboard = ({ navigation }: any) => {
               <MaterialCommunityIcons name="cash-multiple" size={20} color="#A36A00" />
             </View>
             <View style={styles.billRow}>
-              <Text style={styles.billValue}>₹4,240</Text>
+              <Text style={styles.billValue}>{estimatedBill || "—"}</Text>
             </View>
             {/* <View style={styles.dueRow}>
               <Ionicons name="information-circle-outline" size={14} color="#0B7A73" />
@@ -122,23 +384,23 @@ const Dashboard = ({ navigation }: any) => {
           <View style={styles.slabCard}>
             <View style={styles.slabHeaderRow}>
               <Text style={styles.sectionTitle}>Tariff Slab Tracker</Text>
-              <View style={styles.slabBadge}>
-                <Text style={styles.slabBadgeText}>Slab 2 Active</Text>
-              </View>
+            </View>
+            <View style={styles.slabBadge}>
+              <Text style={styles.slabBadgeText}>{slabTracker.badgeText}</Text>
             </View>
 
             <View style={styles.slabScaleRow}>
-              <Text style={styles.scaleText}>0 kWh</Text>
-              <Text style={styles.scaleTextActive}>284 kWh</Text>
-              <Text style={styles.scaleText}>500 kWh</Text>
+              <Text style={styles.scaleText}>{slabTracker.leftLabel}</Text>
+              <Text style={styles.scaleTextActive}>{slabTracker.centerLabel}</Text>
+              <Text style={styles.scaleText}>{slabTracker.rightLabel}</Text>
             </View>
 
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${slabProgress * 100}%` }]} />
+              <View style={[styles.progressFill, { width: `${slabTracker.progress * 100}%` }]} />
             </View>
 
             <Text style={styles.slabNote}>
-              Next slab (+₹2.50/unit) starts at 300 kWh. You're close!
+              {slabTracker.note}
             </Text>
           </View>
 
@@ -147,19 +409,27 @@ const Dashboard = ({ navigation }: any) => {
             <View style={styles.chartArea}>
               <View style={styles.chartGridLine} />
               <View style={styles.chartBarsRow}>
-                {monthlyHeights.map((heightValue, index) => (
-                  <View key={monthlyLabels[index]} style={styles.dayColumn}>
-                    <View style={[styles.bar, { height: heightValue }]} />
+                {chartData.length > 0 ? (
+                  chartData.map((item) => (
+                    <View key={`${item.label}-${item.height}`} style={styles.dayColumn}>
+                      <View style={[styles.bar, { height: item.height }]} />
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.emptyChartWrap}>
+                    <Text style={styles.emptyChartText}>No bill history yet</Text>
                   </View>
-                ))}
+                )}
               </View>
-              <View style={styles.weekLabelRow}>
-                {monthlyLabels.map((label) => (
-                  <Text key={label} style={[styles.weekLabel, label === "Apr" && styles.weekLabelActive]}>
-                    {label}
-                  </Text>
-                ))}
-              </View>
+              {chartData.length > 0 ? (
+                <View style={styles.weekLabelRow}>
+                  {chartData.map((item, index) => (
+                    <Text key={`${item.label}-${index}`} style={[styles.weekLabel, index === chartData.length - 1 && styles.weekLabelActive]}>
+                      {item.label}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -168,18 +438,20 @@ const Dashboard = ({ navigation }: any) => {
               <Text style={styles.miniLabel}>LOCAL WEATHER</Text>
               <View style={styles.miniValueRow}>
                 <Ionicons name="sunny-outline" size={20} color="#D49000" />
-                <Text style={styles.miniValue}>34°C</Text>
+                <Text style={styles.miniValue}>{weather ? `${Math.round(weather.temperatureC)}°C` : "—"}</Text>
               </View>
-              <Text style={styles.miniNote}>High Temp: Use ECO mode</Text>
+              <Text style={styles.miniNote}>
+                {weather ? `${weather.city}: ${weather.condition}` : "Get AI Advice to load live weather"}
+              </Text>
             </View>
 
             <View style={styles.miniCard}>
               <Text style={styles.miniLabel}>GOAL TRACKER</Text>
               <View style={styles.miniValueRow}>
                 <Ionicons name="shield-checkmark-outline" size={20} color="#0B7A73" />
-                <Text style={styles.miniValue}>82%</Text>
+                <Text style={styles.miniValue}>{peakWindow || "—"}</Text>
               </View>
-              <Text style={styles.miniNote}>On track for 15% saving</Text>
+              <Text style={styles.miniNote}>Latest peak window from uploaded bill</Text>
             </View>
           </View>
         </ScrollView>
@@ -365,10 +637,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   slabHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 18,
+    marginBottom: 10,
   },
   sectionTitle: {
     color: "#111827",
@@ -380,6 +649,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    alignSelf: "flex-start",
+    marginBottom: 14,
   },
   slabBadgeText: {
     color: "#A26400",
@@ -454,6 +725,16 @@ const styles = StyleSheet.create({
     height: 120,
     paddingHorizontal: 4,
   },
+  emptyChartWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyChartText: {
+    color: "#6A7A77",
+    fontSize: 13,
+    fontWeight: "600",
+  },
   dayColumn: {
     width: 20,
     alignItems: "center",
@@ -526,9 +807,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
+  tipButtonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   tipButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
+    fontWeight: "700",
+  },
+  tipSecondaryButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  tipSecondaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
     fontWeight: "700",
   },
   tipWatermark: {

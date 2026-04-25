@@ -14,14 +14,75 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { ActivityIndicator } from "react-native";
 import { analyzeBill, ParsedBillData } from "../services/GeminiService";
+import { useUser } from "../context/UserContext";
+import { db } from "../config/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
-const PredictScreen = () => {
-  const { userData } = useUser();
-  const [activeTab, setActiveTab] = useState("Predict");
+type BillSnapshot = {
+  id: string;
+  createdAt: number;
+  billingPeriod: string;
+  totalDue: string;
+  consumption: string;
+  tariff: string;
+  peakHours: string;
+  totalUnits: string;
+  previousMonthUnits: string;
+};
+
+const BillScanScreen = () => {
+  const { userData, setUserData } = useUser();
+  const [activeTab, setActiveTab] = useState("BillScan");
   const [hasUploadedBill, setHasUploadedBill] = useState(false);
   const [selectedBillUri, setSelectedBillUri] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeBillData, setActiveBillData] = useState<ParsedBillData | null>(null);
+
+  const userName = userData?.name?.split(" ")[0] || "Ahmed";
+
+  const saveBillSnapshot = async (parsed: ParsedBillData) => {
+    if (!userData?.uid) {
+      return;
+    }
+
+    const billSnapshot: BillSnapshot = {
+      id: `bill-${Date.now()}`,
+      createdAt: Date.now(),
+      billingPeriod: parsed.billingPeriod,
+      totalDue: parsed.totalDue,
+      consumption: parsed.consumption,
+      tariff: parsed.tariff,
+      peakHours: parsed.peakHours,
+      totalUnits: parsed.totalUnits,
+      previousMonthUnits: parsed.previousMonthUnits,
+    };
+
+    const userDocRef = doc(db, "users", userData.uid);
+    const userDocSnap = await getDoc(userDocRef);
+    const existingHistory = userDocSnap.exists() && Array.isArray(userDocSnap.data().billHistory)
+      ? (userDocSnap.data().billHistory as BillSnapshot[])
+      : [];
+    const updatedHistory = [...existingHistory, billSnapshot];
+
+    await setDoc(
+      userDocRef,
+      {
+        latestBill: billSnapshot,
+        billHistory: updatedHistory,
+      },
+      { merge: true }
+    );
+
+    setUserData((previous) =>
+      previous
+        ? {
+            ...previous,
+            latestBill: billSnapshot,
+            billHistory: updatedHistory,
+          }
+        : previous
+    );
+  };
 
   const processSelectedImage = async (uri: string, base64?: string | null) => {
     setSelectedBillUri(uri);
@@ -31,6 +92,7 @@ const PredictScreen = () => {
     setIsProcessing(true);
     try {
       const parsed = await analyzeBill(base64);
+      await saveBillSnapshot(parsed);
       setActiveBillData(parsed);
       setHasUploadedBill(true);
     } catch (error: any) {
@@ -88,7 +150,7 @@ const PredictScreen = () => {
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
-        <View style={styles.topBar}>
+          <View style={styles.topBar}>
             <View style={styles.brandRow}>
               <Image
                 source={require("../../assets/Bijli-Buddy-Logo.png")}
@@ -98,10 +160,10 @@ const PredictScreen = () => {
             </View>
 
             <View style={styles.topActions}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
+              </View>
             </View>
-          </View>
           </View>
 
           <View style={styles.heroSection}>
@@ -264,7 +326,7 @@ const PredictScreen = () => {
   );
 };
 
-export default PredictScreen;
+export default BillScanScreen;
 
 const styles = StyleSheet.create({
   safeArea: {

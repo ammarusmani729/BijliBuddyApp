@@ -23,6 +23,14 @@ export interface ParsedBillData {
   };
 }
 
+export interface AdviceInput {
+  locationLabel: string;
+  weatherSummary: string;
+  appliancesSummary: string;
+  tariffSummary?: string;
+  unitsSummary?: string;
+}
+
 export const analyzeBill = async (base64Image: string): Promise<ParsedBillData> => {
   if (!API_KEY) {
     throw new Error("Gemini API key is not configured. Please add EXPO_PUBLIC_GEMINI_API_KEY to your .env file.");
@@ -85,5 +93,41 @@ export const analyzeBill = async (base64Image: string): Promise<ParsedBillData> 
   } catch (error) {
     console.error("Error analyzing bill with Gemini:", error);
     throw new Error("Failed to parse bill. Please check the image and your API key.");
+  }
+};
+
+export const generateEnergySavingAdvice = async (input: AdviceInput): Promise<string> => {
+  if (!API_KEY) {
+    throw new Error("Gemini API key is not configured. Please add EXPO_PUBLIC_GEMINI_API_KEY to your .env file.");
+  }
+
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+  const prompt = `
+    You are Bijli Buddy's electricity optimization assistant for Pakistan users.
+    Generate practical and realistic savings advice based on weather and home appliance usage.
+
+    User context:
+    - Location: ${input.locationLabel}
+    - Weather: ${input.weatherSummary}
+    - Appliances: ${input.appliancesSummary}
+    - Latest tariff: ${input.tariffSummary || "Not available"}
+    - Latest monthly units: ${input.unitsSummary || "Not available"}
+
+    Output rules:
+    - Keep language simple and direct.
+    - Focus on actions that reduce electricity bill in the given weather.
+    - Mention AC/fan/fridge/water-heating adjustments when relevant.
+    - Include 5 to 7 bullet points.
+    - Add one short "Priority today" line at the end.
+    - Return plain text only (no markdown code blocks).
+  `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    return result.response.text().trim();
+  } catch (error) {
+    console.error("Error generating energy advice with Gemini:", error);
+    throw new Error("Failed to generate AI advice. Please try again.");
   }
 };

@@ -16,19 +16,63 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as Animatable from "react-native-animatable";
+import { useUser } from "../context/UserContext";
+import { getFirebaseAuth, db } from "../config/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth/cordova";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { ActivityIndicator } from "react-native";
+import { getFriendlyAuthErrorMessage } from "../utils/authErrors";
 
 const LoginScreen = () => {
   const navigation = useNavigation();
+  const { setUserData } = useUser();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = () => {
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert("Error", "Please enter all fields");
       return;
     }
-    navigation.navigate("Dashboard" as never);
+
+    setIsLoggingIn(true);
+    try {
+      const auth = getFirebaseAuth();
+      // 1. Authenticate user
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const user = userCredential.user;
+
+      // 2. Fetch User Data from Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        setUserData({
+          uid: user.uid,
+          name: userData.name || "",
+          email: userData.email || "",
+          location: userData.location || "",
+          appliances: userData.appliances || {},
+          latestBill: userData.latestBill || null,
+          billHistory: userData.billHistory || [],
+          weather: null,
+          aiAdvice: null,
+          aiAdviceUpdatedAt: null,
+        });
+        navigation.navigate("Dashboard" as never);
+      } else {
+        Alert.alert("Error", "User data not found in database.");
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      Alert.alert("Login Failed", getFriendlyAuthErrorMessage(error, "Invalid email or password."));
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   return (
@@ -95,28 +139,16 @@ const LoginScreen = () => {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity activeOpacity={0.86} onPress={handleLogin}>
+              <TouchableOpacity activeOpacity={0.86} onPress={handleLogin} disabled={isLoggingIn}>
                 <View style={styles.button}>
-                  <Text style={styles.buttonText}>Login</Text>
+                  {isLoggingIn ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.buttonText}>Login</Text>
+                  )}
                 </View>
               </TouchableOpacity>
 
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <TouchableOpacity
-                activeOpacity={0.86}
-                style={styles.googleButton}
-                onPress={() => Alert.alert("Google sign-in", "Google sign-in is not configured yet.")}
-              >
-                <View style={styles.googleIconWrap}>
-                  <Text style={styles.googleIcon}>G</Text>
-                </View>
-                <Text style={styles.googleText}>Sign in with Google</Text>
-              </TouchableOpacity>
             </Animatable.View>
 
             <TouchableOpacity

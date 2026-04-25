@@ -6,8 +6,8 @@ import { useNavigation, NavigationProp } from "@react-navigation/native";
 type RootStackParamList = {
   Dashboard: undefined;
   Appliances: undefined;
-  Predict: undefined;
-  Weather: undefined;
+  BillScan: undefined;
+  AIAdvice: undefined;
   Profile: undefined;
 };
 
@@ -35,23 +35,23 @@ const MenuBar: React.FC<MenuBarProps> = ({ active, onChange }) => {
       activeKeys: ["Dashboard", "Home"],
     },
     {
-      label: "Appliances",
-      icon: "flash-outline",
-      route: "Appliances",
-      activeKeys: ["Appliances", "UsageDetails", "Usage"],
+      label: "AI Advice",
+      icon: "stats-chart-outline",
+      route: "AIAdvice",
+      activeKeys: ["AIAdvice", "AI Advice", "Weather", "Reports"],
     },
     {
       label: "Bill Scan",
       icon: "scan-outline",
-      route: "Predict",
-      activeKeys: ["Predict", "Bill Scan", "Scan"],
+      route: "BillScan",
+      activeKeys: ["BillScan", "Bill Scan", "Predict", "Scan"],
       center: true,
     },
     {
-      label: "Reports",
-      icon: "stats-chart-outline",
-      route: "Weather",
-      activeKeys: ["Weather", "Reports"],
+      label: "Appliances",
+      icon: "flash-outline",
+      route: "Appliances",
+      activeKeys: ["Appliances", "UsageDetails", "Usage"],
     },
     {
       label: "Profile",

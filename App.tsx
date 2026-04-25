@@ -7,9 +7,9 @@ import WelcomeScreen from "./src/screens/WelcomeScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import SignupScreen from "./src/screens/SignupScreen";
 import Dashboard from "./src/screens/Dashboard";
-import UsageDetails from "./src/screens/UsageDetails";
-import PredictScreen from "./src/screens/PredictScreen";
-import WeatherScreen from "./src/screens/WeatherScreen";
+import AppliancesScreen from "./src/screens/AppliancesScreen";
+import BillScanScreen from "./src/screens/BillScanScreen";
+import AIAdviceScreen from "./src/screens/AIAdviceScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import { UserProvider } from "./src/context/UserContext";
 import { User } from "lucide-react-native";
@@ -28,9 +28,9 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={SignupScreen} />
         <Stack.Screen name="Dashboard" component={Dashboard} />
-        <Stack.Screen name="Appliances" component={UsageDetails} />
-        <Stack.Screen name="Predict" component={PredictScreen} />
-        <Stack.Screen name="Weather" component={WeatherScreen} />
+        <Stack.Screen name="Appliances" component={AppliancesScreen} />
+        <Stack.Screen name="BillScan" component={BillScanScreen} />
+        <Stack.Screen name="AIAdvice" component={AIAdviceScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>

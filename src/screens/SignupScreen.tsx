@@ -16,6 +16,11 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as Animatable from "react-native-animatable";
 import { useUser } from "../context/UserContext";
+import { getFirebaseAuth, db } from "../config/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth/cordova";
+import { doc, setDoc } from "firebase/firestore";
+import { ActivityIndicator } from "react-native";
+import { getFriendlyAuthErrorMessage } from "../utils/authErrors";
 
 const SignupScreen = () => {
   const navigation = useNavigation();
@@ -27,7 +32,9 @@ const SignupScreen = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSignup = () => {
+  const [isSigningUp, setIsSigningUp] = useState(false);
+
+  const handleSignup = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim() || !location.trim()) {
       Alert.alert("Error", "Please fill all fields");
       return;
@@ -43,14 +50,38 @@ const SignupScreen = () => {
       return;
     }
 
-    setUserData({
-      name: fullName,
-      email,
-      location: location.trim(),
-      appliances: {},
-    });
+    setIsSigningUp(true);
+    try {
+      const auth = getFirebaseAuth();
+      // 1. Create User in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const user = userCredential.user;
 
-    navigation.navigate("Dashboard" as never);
+      // 2. Save User Details in Firestore
+      const newUser = {
+        uid: user.uid,
+        name: fullName.trim(),
+        email: email.trim(),
+        location: location.trim(),
+        appliances: {},
+        latestBill: null,
+        billHistory: [],
+        weather: null,
+        aiAdvice: null,
+        aiAdviceUpdatedAt: null,
+      };
+
+      await setDoc(doc(db, "users", user.uid), newUser);
+
+      // 3. Update Local State & Navigate
+      setUserData(newUser);
+      navigation.navigate("Dashboard" as never);
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      Alert.alert("Signup Failed", getFriendlyAuthErrorMessage(error, "An unexpected error occurred."));
+    } finally {
+      setIsSigningUp(false);
+    }
   };
 
   return (
@@ -131,7 +162,7 @@ const SignupScreen = () => {
             <View style={styles.inputWrapper}>
               <Ionicons name="location-outline" size={18} color="#7B8684" style={styles.leftIcon} />
               <TextInput
-                placeholder="e.g. North Nazimabad, Gulshan-e-Iqbal, PECHS"
+                placeholder="e.g. North Nazimabad"
                 placeholderTextColor="#B0B7B5"
                 style={styles.input}
                 value={location}
@@ -152,40 +183,18 @@ const SignupScreen = () => {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity activeOpacity={0.88} onPress={handleSignup}>
+            <TouchableOpacity activeOpacity={0.88} onPress={handleSignup} disabled={isSigningUp}>
               <View style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Sign Up</Text>
-                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                {isSigningUp ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.primaryButtonText}>Sign Up</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                  </>
+                )}
               </View>
             </TouchableOpacity>
-
-            {/* <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <View style={styles.socialRow}>
-                <TouchableOpacity
-                  activeOpacity={0.86}
-                  style={styles.socialButton}
-                  onPress={() => Alert.alert("Google sign-in", "Google sign-in is not configured yet.")}
-                >
-                  <View style={styles.socialIconWrap}>
-                    <Text style={styles.googleMark}>G</Text>
-                  </View>
-                  <Text style={styles.socialText}>Google</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.86}
-                  style={styles.socialButton}
-                  onPress={() => Alert.alert("Facebook sign-in", "Facebook sign-in is not configured yet.")}
-                >
-                  <Ionicons name="logo-facebook" size={20} color="#1877F2" />
-                  <Text style={styles.socialText}>Facebook</Text>
-                </TouchableOpacity>
-              </View> */}
 
             <TouchableOpacity
               activeOpacity={0.8}

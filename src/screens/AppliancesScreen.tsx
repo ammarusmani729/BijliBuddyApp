@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,9 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import MenuBar from "../components/MenuBar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "../context/UserContext";
+import { useIsFocused } from "@react-navigation/native";
+import { db } from "../config/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 
 type Appliance = {
@@ -47,8 +50,20 @@ const applianceOptions: ApplianceOption[] = [
   { name: "Room Cooler", icon: "air-humidifier" },
 ];
 
+type ApplianceRecord = Record<string, Appliance>;
+
+const toApplianceRecord = (items: Appliance[]) =>
+  items.reduce<ApplianceRecord>((record, item) => {
+    record[item.id] = item;
+    return record;
+  }, {});
+
+const toApplianceList = (record: ApplianceRecord | undefined | null) =>
+  record ? Object.values(record) : [];
+
 const AppliancesScreen = () => {
-  const { userData } = useUser();
+  const { userData, setUserData } = useUser();
+  const isFocused = useIsFocused();
   const [activeTab, setActiveTab] = useState("Appliances");
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -58,34 +73,41 @@ const AppliancesScreen = () => {
   const [deleteQtyInput, setDeleteQtyInput] = useState("");
   const [selectedApplianceName, setSelectedApplianceName] = useState(applianceOptions[0].name);
   const [newApplianceQty, setNewApplianceQty] = useState("");
-  const [appliances, setAppliances] = useState<Appliance[]>([
-    {
-      id: "ac",
-      name: "Main AC",
-      quantity: 2,
-      icon: "snowflake",
-    },
-    {
-      id: "fridge",
-      name: "Refrigerator",
-      quantity: 1,
-      icon: "fridge-outline",
-    },
-    {
-      id: "geyser",
-      name: "Geyser",
-      quantity: 1,
-      icon: "water-boiler",
-    },
-    {
-      id: "washer",
-      name: "Washer",
-      quantity: 1,
-      icon: "washing-machine",
-    },
-  ]);
+  const [appliances, setAppliances] = useState<Appliance[]>([]);
 
   const userName = userData?.name?.split(" ")[0] || "Ahmed";
+
+  useEffect(() => {
+    const loadAppliances = async () => {
+      if (!isFocused || !userData?.uid) {
+        return;
+      }
+
+      try {
+        const userDocRef = doc(db, "users", userData.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+          setAppliances([]);
+          setUserData((previous) =>
+            previous ? { ...previous, appliances: {} } : previous
+          );
+          return;
+        }
+
+        const storedAppliances = (userDocSnap.data().appliances || {}) as ApplianceRecord;
+        const loadedAppliances = toApplianceList(storedAppliances);
+        setAppliances(loadedAppliances);
+        setUserData((previous) =>
+          previous ? { ...previous, appliances: storedAppliances } : previous
+        );
+      } catch (error) {
+        console.error("Failed to load appliances:", error);
+      }
+    };
+
+    loadAppliances();
+  }, [isFocused, userData?.uid, setUserData]);
 
   const filteredAppliances = appliances.filter((item) => {
     const query = search.toLowerCase().trim();
@@ -96,7 +118,29 @@ const AppliancesScreen = () => {
     return item.name.toLowerCase().includes(query);
   });
 
-  const handleAddAppliance = () => {
+  const persistAppliances = async (nextAppliances: Appliance[]) => {
+    if (!userData?.uid) {
+      return;
+    }
+
+    const appliancesRecord = toApplianceRecord(nextAppliances);
+    const userDocRef = doc(db, "users", userData.uid);
+
+    await setDoc(
+      userDocRef,
+      {
+        appliances: appliancesRecord,
+      },
+      { merge: true }
+    );
+
+    setAppliances(nextAppliances);
+    setUserData((previous) =>
+      previous ? { ...previous, appliances: appliancesRecord } : previous
+    );
+  };
+
+  const handleAddAppliance = async () => {
     const quantity = Number.parseInt(newApplianceQty, 10);
     const selectedAppliance = applianceOptions.find((item) => item.name === selectedApplianceName);
 
@@ -117,15 +161,25 @@ const AppliancesScreen = () => {
       icon: selectedAppliance.icon,
     };
 
-    setAppliances((prev) => [newAppliance, ...prev]);
-    setShowAddModal(false);
-    setShowApplianceDropdown(false);
-    setNewApplianceQty("");
+    try {
+      await persistAppliances([newAppliance, ...appliances]);
+      setShowAddModal(false);
+      setShowApplianceDropdown(false);
+      setNewApplianceQty("");
+    } catch (error) {
+      console.error("Failed to save appliance:", error);
+      Alert.alert("Save Failed", "Could not save the appliance. Please try again.");
+    }
   };
 
-  const handleDeleteAppliance = (appliance: Appliance) => {
+  const handleDeleteAppliance = async (appliance: Appliance) => {
     if (appliance.quantity <= 1) {
-      setAppliances((prev) => prev.filter((item) => item.id !== appliance.id));
+      try {
+        await persistAppliances(appliances.filter((item) => item.id !== appliance.id));
+      } catch (error) {
+        console.error("Failed to delete appliance:", error);
+        Alert.alert("Delete Failed", "Could not delete the appliance. Please try again.");
+      }
       return;
     }
 
@@ -134,7 +188,7 @@ const AppliancesScreen = () => {
     setShowDeleteQtyModal(true);
   };
 
-  const handleConfirmDeleteQty = () => {
+  const handleConfirmDeleteQty = async () => {
     if (!deleteTarget) {
       return;
     }
@@ -151,26 +205,30 @@ const AppliancesScreen = () => {
       return;
     }
 
-    setAppliances((prev) =>
-      prev
-        .map((item) => {
-          if (item.id !== deleteTarget.id) {
-            return item;
-          }
+    const nextAppliances = appliances
+      .map((item) => {
+        if (item.id !== deleteTarget.id) {
+          return item;
+        }
 
-          const updatedQty = item.quantity - qtyToDelete;
-          if (updatedQty <= 0) {
-            return null;
-          }
+        const updatedQty = item.quantity - qtyToDelete;
+        if (updatedQty <= 0) {
+          return null;
+        }
 
-          return { ...item, quantity: updatedQty };
-        })
-        .filter((item): item is Appliance => item !== null)
-    );
+        return { ...item, quantity: updatedQty };
+      })
+      .filter((item): item is Appliance => item !== null);
 
-    setShowDeleteQtyModal(false);
-    setDeleteTarget(null);
-    setDeleteQtyInput("");
+    try {
+      await persistAppliances(nextAppliances);
+      setShowDeleteQtyModal(false);
+      setDeleteTarget(null);
+      setDeleteQtyInput("");
+    } catch (error) {
+      console.error("Failed to update appliance quantity:", error);
+      Alert.alert("Delete Failed", "Could not update the appliance. Please try again.");
+    }
   };
 
   return (
@@ -248,7 +306,15 @@ const AppliancesScreen = () => {
           </View>
 
           <View style={styles.listWrap}>
-            {filteredAppliances.map((item) => {
+            {filteredAppliances.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="layers-outline" size={26} color="#6E7C7A" />
+                <Text style={styles.emptyStateTitle}>No appliances added yet</Text>
+                <Text style={styles.emptyStateText}>
+                  Add your first appliance and it will be saved to Firebase.
+                </Text>
+              </View>
+            ) : filteredAppliances.map((item) => {
               return (
                 <View key={item.id} style={styles.listItem}>
                   <View style={styles.listLeft}>
@@ -591,6 +657,28 @@ const styles = StyleSheet.create({
   },
   listWrap: {
     gap: 10,
+  },
+  emptyState: {
+    backgroundColor: "#F5F7F6",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#DFE7E5",
+    paddingVertical: 24,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  emptyStateTitle: {
+    color: "#101312",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  emptyStateText: {
+    color: "#5F6F6B",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
   },
   listItem: {
     flexDirection: "row",

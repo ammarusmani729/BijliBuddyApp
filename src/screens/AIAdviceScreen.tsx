@@ -6,15 +6,65 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import MenuBar from "../components/MenuBar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "../context/UserContext";
+import { ActivityIndicator } from "react-native";
+import { getWeatherAndAiAdvice } from "../services/AIAdviceService";
 
-const WeatherScreen = () => {
-  const [activeTab, setActiveTab] = useState("Weather");
-  const { userData } = useUser();
+const AIAdviceScreen = () => {
+  const [activeTab, setActiveTab] = useState("AIAdvice");
+  const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
+  const { userData, setUserData } = useUser();
+
+  const latestBill = userData?.latestBill;
+  const weather = userData?.weather || null;
+  const aiAdvice = userData?.aiAdvice || null;
+
+  const handleGetAiAdvice = async () => {
+    if (!userData) {
+      Alert.alert("Not available", "Please log in again to generate AI advice.");
+      return;
+    }
+
+    setIsGeneratingAdvice(true);
+    try {
+      const result = await getWeatherAndAiAdvice({
+        profileLocation: userData.location,
+        appliances: userData.appliances,
+        tariffSummary: latestBill?.tariff,
+        unitsSummary: latestBill?.totalUnits,
+      });
+
+      setUserData((previous) =>
+        previous
+          ? {
+              ...previous,
+              weather: result.weather,
+              aiAdvice: result.advice,
+              aiAdviceUpdatedAt: Date.now(),
+            }
+          : previous
+      );
+    } catch (error: any) {
+      console.error("AI advice generation failed:", error);
+      const errorMessage = error?.message || "Could not generate advice right now. Please try again.";
+      
+      setUserData((previous) =>
+        previous
+          ? {
+              ...previous,
+              aiAdvice: `Error: ${errorMessage}`,
+            }
+          : previous
+      );
+    } finally {
+      setIsGeneratingAdvice(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -30,10 +80,12 @@ const WeatherScreen = () => {
               style={styles.brandLogo}
               resizeMode="contain"
             />
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {(userData?.name?.charAt(0) || "A").toUpperCase()}
-              </Text>
+            <View style={styles.topActions}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {(userData?.name?.charAt(0) || "A").toUpperCase()}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -43,17 +95,41 @@ const WeatherScreen = () => {
             <Text style={styles.badgeText}>Response given by AI</Text>
           </View>
 
-          <Text style={styles.heroTitle}>
-            AI Advice:
-          </Text>
+          <Text style={styles.heroTitle}>AI Advice</Text>
 
-          {/* Intro paragraph */}
-          <View style={styles.card}>
-            <Text style={styles.bodyText}>
-              lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua
+          <View style={styles.weatherCard}>
+            <Text style={styles.weatherTitle}>Current Weather</Text>
+            <Text style={styles.weatherBody}>
+              {weather
+                ? `${weather.city}: ${Math.round(weather.temperatureC)}°C, ${weather.condition}, humidity ${weather.humidity}%`
+                : "No weather fetched yet. Tap Get AI Advice to load current weather."}
             </Text>
           </View>
 
+          <View style={styles.card}>
+            <Text style={styles.bodyText}>
+              {aiAdvice || "No AI advice yet. Tap the button below to fetch weather and generate appliance-based savings tips."}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.primaryButton}
+            onPress={handleGetAiAdvice}
+            disabled={isGeneratingAdvice}
+          >
+            {isGeneratingAdvice ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Get AI Advice</Text>
+            )}
+          </TouchableOpacity>
+
+          {aiAdvice ? (
+            <Text style={styles.metaText}>Detailed advice is based on your latest weather and appliance list.</Text>
+          ) : null}
+
+          <View style={styles.bottomGap} />
         </ScrollView>
 
         <MenuBar active={activeTab} onChange={setActiveTab} />
@@ -62,7 +138,7 @@ const WeatherScreen = () => {
   );
 };
 
-export default WeatherScreen;
+export default AIAdviceScreen;
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -132,6 +208,26 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: 16,
   },
+  weatherCard: {
+    backgroundColor: "#F4F8F7",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "#E0E7E5",
+    marginBottom: 12,
+  },
+  weatherTitle: {
+    color: "#0B7A73",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  weatherBody: {
+    color: "#3D4F4C",
+    fontSize: 14,
+    lineHeight: 20,
+  },
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
@@ -150,6 +246,28 @@ const styles = StyleSheet.create({
     color: "#3D4F4C",
     fontSize: 15,
     lineHeight: 24,
+  },
+  primaryButton: {
+    backgroundColor: "#07726B",
+    minHeight: 50,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  metaText: {
+    marginTop: 10,
+    color: "#5E6E6B",
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  bottomGap: {
+    height: 8,
   },
   boldText: {
     fontWeight: "700",
