@@ -39,9 +39,6 @@ const ProfileScreen = () => {
                 resizeMode="contain"
               />
             </View>
-            <TouchableOpacity activeOpacity={0.8} style={styles.iconButton}>
-              <Ionicons name="notifications-outline" size={24} color="#9AA6AD" />
-            </TouchableOpacity>
           </View>
 
           {/* Avatar + Name */}

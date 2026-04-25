@@ -283,28 +283,6 @@ const AppliancesScreen = () => {
             />
           </View>
 
-          <View style={styles.tipCard}>
-            <View style={styles.tipTopRow}>
-              <Ionicons name="bulb-outline" size={15} color="#D8FFF8" />
-              <Text style={styles.tipLabel}>SMART SAVING TIP</Text>
-            </View>
-            <Text style={styles.tipText}>
-              Your AC has been running 15% longer than average today. Consider a 2 deg C adjustment.
-            </Text>
-            <MaterialCommunityIcons
-              name="star-four-points"
-              size={64}
-              color="rgba(255,255,255,0.16)"
-              style={styles.tipMarkTop}
-            />
-            <MaterialCommunityIcons
-              name="star-four-points"
-              size={44}
-              color="rgba(255,255,255,0.14)"
-              style={styles.tipMarkBottom}
-            />
-          </View>
-
           <View style={styles.listWrap}>
             {filteredAppliances.length === 0 ? (
               <View style={styles.emptyState}>
